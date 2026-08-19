@@ -6,7 +6,9 @@
     <title>Pre-Nursery Flashcards</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <!-- 使用 ExcelJS 與 FileSaver 來支援真實圖片嵌入 -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
     <style>
         .flip-card-inner { transition: transform 0.6s; transform-style: preserve-3d; }
         .is-flipped .flip-card-inner { transform: rotateY(180deg); }
@@ -24,7 +26,8 @@
                 <h1 class="text-2xl font-bold text-indigo-900">學習閃卡系統</h1>
                 <div class="flex gap-2">
                     <button @click="openAddModal()" class="bg-indigo-600 text-white px-3 py-1 rounded shadow hover:bg-indigo-700 text-sm">➕ 新增</button>
-                    <button @click="exportExcel()" class="bg-blue-600 text-white px-3 py-1 rounded shadow hover:bg-blue-700 text-sm">📤 匯出Excel</button>
+                    <!-- 點擊此按鈕，會直接下載包含實體圖片的 Excel 檔 -->
+                    <button @click="exportExcelWithImages()" class="bg-blue-600 text-white px-3 py-1 rounded shadow hover:bg-blue-700 text-sm">📤 匯出Excel (含圖)</button>
                     <button @click="downloadProgress()" class="bg-green-600 text-white px-3 py-1 rounded shadow hover:bg-green-700 text-sm">📥 下載資料</button>
                 </div>
             </div>
@@ -211,7 +214,7 @@
                 init() {
                     this.deckNames = Object.keys(this.decksData);
                     if(this.deckNames.length > 0) this.currentDeckName = this.deckNames[0];
-                    const saved = localStorage.getItem('flashcard_progress_v7');
+                    const saved = localStorage.getItem('flashcard_progress_v8');
                     if(saved) {
                         try {
                             const progress = JSON.parse(saved);
@@ -224,7 +227,7 @@
                 },
                 
                 saveProgress() {
-                    localStorage.setItem('flashcard_progress_v7', JSON.stringify({ decks: this.decksData }));
+                    localStorage.setItem('flashcard_progress_v8', JSON.stringify({ decks: this.decksData }));
                 },
                 
                 get activeList() {
@@ -303,7 +306,7 @@
                                 this.ctx.drawImage(img, x, y, w, h);
                                 this.ctx.lineWidth = 4;
                                 this.ctx.lineCap = 'round';
-                                this.ctx.strokeStyle = '#ef4444'; // 塗鴉顏色預設為紅色以便於標記照片
+                                this.ctx.strokeStyle = '#ef4444';
                             };
                             img.src = event.target.result;
                         };
@@ -321,24 +324,84 @@
                 },
                 
                 saveDrawing() {
-                    // 使用 JPEG 壓縮，避免 Base64 字串過長導致匯出 Excel 時發生異常
+                    // 使用 JPEG 格式壓縮
                     const dataUrl = this.canvas.toDataURL("image/jpeg", 0.6);
                     this.currentObj.image = dataUrl;
                     this.saveProgress();
                     this.showDrawModal = false;
                 },
                 
-                exportExcel() {
-                    let rows = [];
-                    for(let deck in this.decksData) {
-                        this.decksData[deck].forEach(item => {
-                            rows.push({"卡組名稱": deck, "詞彙": item.word, "圖片網址": item.image, "例句": item.example, "狀態": item.status});
-                        });
+                // === 使用 ExcelJS 產生實體圖片的 Excel 檔案 ===
+                async exportExcelWithImages() {
+                    const workbook = new ExcelJS.Workbook();
+                    const worksheet = workbook.addWorksheet('Flashcards');
+                    
+                    // 設定欄位寬度
+                    worksheet.columns = [
+                        { header: '卡組名稱', key: 'deck', width: 20 },
+                        { header: '詞彙', key: 'word', width: 20 },
+                        { header: '真實圖片', key: 'visual_img', width: 25 },
+                        { header: '例句', key: 'example', width: 40 },
+                        { header: '狀態', key: 'status', width: 15 }
+                    ];
+                    
+                    // 置中對齊標題
+                    worksheet.getRow(1).eachCell(cell => {
+                        cell.font = { bold: true };
+                        cell.alignment = { vertical: 'middle', horizontal: 'center' };
+                    });
+
+                    let rowIndex = 2; // 資料從第二列開始
+                    for (let deck in this.decksData) {
+                        for (let item of this.decksData[deck]) {
+                            const row = worksheet.addRow({
+                                deck: deck,
+                                word: item.word,
+                                example: item.example,
+                                status: item.status
+                            });
+                            
+                            // 將該列高度拉高，以便容納圖片
+                            worksheet.getRow(rowIndex).height = 100;
+                            
+                            // 所有的 Cell 置中
+                            row.eachCell(cell => {
+                                cell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
+                            });
+
+                            if (item.image && item.image.startsWith('data:image')) {
+                                try {
+                                    // 移除 Base64 的 header 資訊 (例如: data:image/jpeg;base64,)
+                                    const base64Data = item.image.split(',')[1];
+                                    const ext = item.image.includes('png') ? 'png' : 'jpeg';
+                                    
+                                    const imageId = workbook.addImage({
+                                        base64: base64Data,
+                                        extension: ext,
+                                    });
+                                    
+                                    // 插入圖片到對應的儲存格 (col 2 代表 C 欄)
+                                    worksheet.addImage(imageId, {
+                                        tl: { col: 2, row: rowIndex - 1 },
+                                        ext: { width: 120, height: 120 },
+                                        editAs: 'oneCell'
+                                    });
+                                } catch(e) {
+                                    console.error("圖片匯出失敗:", e);
+                                }
+                            } else if (item.image) {
+                                // 如果只是一般網址，則以文字寫入
+                                row.getCell('visual_img').value = item.image;
+                            }
+                            
+                            rowIndex++;
+                        }
                     }
-                    let wb = XLSX.utils.book_new();
-                    let ws = XLSX.utils.json_to_sheet(rows);
-                    XLSX.utils.book_append_sheet(wb, ws, "Flashcards");
-                    XLSX.writeFile(wb, "my_flashcards_updated.xlsx");
+
+                    // 輸出檔案並下載
+                    const buffer = await workbook.xlsx.writeBuffer();
+                    const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+                    saveAs(blob, "my_flashcards_with_real_photos.xlsx");
                 },
                 
                 saveModalData() {
@@ -377,6 +440,20 @@
                         [arr[i], arr[j]] = [arr[j], arr[i]];
                     }
                     this.gridItems = arr.slice(0, 9);
+                },
+                
+                downloadProgress() {
+                    this.saveProgress();
+                    const dataStr = localStorage.getItem('flashcard_progress_v8');
+                    const blob = new Blob([dataStr], {type: "application/json"});
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = 'progress.json';
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
                 },
                 
                 speakWord(wordText) {
