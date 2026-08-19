@@ -6,7 +6,6 @@
     <title>Pre-Nursery Flashcards</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
-    <!-- 使用 ExcelJS 與 FileSaver 來支援真實圖片嵌入 -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
     <style>
@@ -25,15 +24,16 @@
             <div class="w-full flex justify-between items-center mb-3">
                 <h1 class="text-2xl font-bold text-indigo-900">學習閃卡系統</h1>
                 <div class="flex gap-2">
-                    <button @click="openAddModal()" class="bg-indigo-600 text-white px-3 py-1 rounded shadow hover:bg-indigo-700 text-sm">➕ 新增</button>
-                    <!-- 點擊此按鈕，會直接下載包含實體圖片的 Excel 檔 -->
-                    <button @click="exportExcelWithImages()" class="bg-blue-600 text-white px-3 py-1 rounded shadow hover:bg-blue-700 text-sm">📤 匯出Excel (含圖)</button>
-                    <button @click="downloadProgress()" class="bg-green-600 text-white px-3 py-1 rounded shadow hover:bg-green-700 text-sm">📥 下載資料</button>
+                    <button @click="openAddModal()" class="bg-indigo-600 text-white px-3 py-2 rounded shadow hover:bg-indigo-700 font-bold text-sm">➕ 新增</button>
+                    <!-- 即時下載按鈕 -->
+                    <button @click="exportExcelWithImages()" class="bg-green-600 text-white px-3 py-2 rounded shadow hover:bg-green-700 font-bold text-sm flex items-center gap-1">
+                        📥 即時下載 Excel (含照片)
+                    </button>
                 </div>
             </div>
             
             <!-- 卡組選擇列 -->
-            <div class="w-full overflow-x-auto whitespace-nowrap mb-3 pb-2">
+            <div class="w-full overflow-x-auto whitespace-nowrap mb-3 pb-2 border-b-2 border-gray-200">
                 <template x-for="deck in deckNames" :key="deck">
                     <button @click="setDeck(deck)" 
                             :class="currentDeckName === deck ? 'bg-indigo-600 text-white shadow-md' : 'bg-white text-indigo-600 border border-indigo-300'"
@@ -70,7 +70,7 @@
                         <div class="flip-card-front bg-white rounded-2xl flex items-center justify-center border-t-8" 
                              :class="currentObj.status === '已記住' ? 'border-green-500' : 'border-indigo-500'">
                             <div class="absolute top-4 right-4 flex gap-2">
-                                <button @click.stop="openDrawModal()" class="text-gray-400 hover:text-purple-600 p-1 font-bold text-sm bg-purple-50 px-2 rounded border border-purple-100" title="拍照/圖片塗鴉">📷 畫圖</button>
+                                <button @click.stop="openDrawModal()" class="text-gray-400 hover:text-purple-600 p-1 font-bold text-sm bg-purple-50 px-2 rounded border border-purple-100" title="拍照/圖片塗鴉">📷 照片/畫圖</button>
                                 <button @click.stop="openEditModal()" class="text-gray-400 hover:text-indigo-600 p-1 font-bold text-sm bg-indigo-50 px-2 rounded border border-indigo-100" title="編輯單詞">✏️</button>
                                 <div @click.stop="speakWord(currentObj.word)" title="播放發音">
                                     <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-indigo-400 hover:text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -82,11 +82,11 @@
                         </div>
 
                         <!-- 背面 -->
-                        <div class="flip-card-back bg-slate-50 rounded-2xl border-4 border-indigo-200 flex flex-col items-center justify-center p-6 text-center">
+                        <div class="flip-card-back bg-slate-50 rounded-2xl border-4 border-indigo-200 flex flex-col items-center justify-center p-6 text-center overflow-hidden">
                             <template x-if="currentObj.image">
-                                <img :src="currentObj.image" class="h-32 object-contain mb-3 rounded border bg-white" alt="illustration">
+                                <img :src="currentObj.image" class="h-40 object-contain mb-3 rounded border border-gray-300 bg-white shadow-sm" alt="illustration">
                             </template>
-                            <template x-if="!currentObj.image"><div class="h-6 text-gray-400 text-sm italic">(點擊右上角「📷 畫圖」可拍攝或上傳)</div></template>
+                            <template x-if="!currentObj.image"><div class="h-6 text-gray-400 text-sm italic">(點擊右上角「📷 照片」可拍攝或上傳)</div></template>
                             
                             <div class="text-2xl font-bold text-indigo-900 mb-2" x-text="currentObj.word"></div>
                             
@@ -136,11 +136,11 @@
                 <template x-for="item in gridItems" :key="Math.random()">
                     <div class="bg-white border-2 border-indigo-100 shadow-sm rounded-xl aspect-square flex flex-col items-center justify-center p-2 cursor-pointer" @click="speakWord(item.word)">
                         <template x-if="gridDisplayType === 'word'"><span class="text-3xl md:text-5xl font-bold text-slate-800" x-text="item.word"></span></template>
-                        <template x-if="gridDisplayType === 'example'"><span class="text-sm font-bold text-slate-600 text-center" x-text="item.example || '(無例句)'"></span></template>
+                        <template x-if="gridDisplayType === 'example'"><span class="text-sm font-bold text-slate-600 text-center line-clamp-4" x-text="item.example || '(無例句)'"></span></template>
                         <template x-if="gridDisplayType === 'image'">
                             <div class="w-full h-full flex items-center justify-center">
                                 <template x-if="item.image"><img :src="item.image" class="max-h-full max-w-full object-contain rounded"></template>
-                                <template x-if="!item.image"><span class="text-gray-400 font-bold">(無圖)</span></template>
+                                <template x-if="!item.image"><span class="text-gray-400 font-bold text-sm">(無圖)</span></template>
                             </div>
                         </template>
                     </div>
@@ -149,23 +149,23 @@
         </div>
 
         <!-- ================= 手繪與拍照畫板 Modal ================= -->
-        <div x-show="showDrawModal" class="fixed inset-0 bg-black bg-opacity-60 z-50 flex items-center justify-center p-4" style="display: none;">
+        <div x-show="showDrawModal" class="fixed inset-0 bg-black bg-opacity-70 z-50 flex items-center justify-center p-4" style="display: none;">
             <div class="bg-white w-full max-w-md rounded-2xl p-5 shadow-2xl flex flex-col items-center">
-                <h3 class="text-lg font-bold text-purple-800 mb-2">📷 圖片與塗鴉：<span x-text="currentObj.word"></span></h3>
+                <h3 class="text-lg font-bold text-purple-800 mb-2">📷 拍攝/塗鴉：<span x-text="currentObj.word"></span></h3>
                 
                 <div class="flex flex-wrap justify-center gap-2 mb-3 w-full">
-                    <button @click="triggerUpload(true)" class="px-3 py-1 bg-blue-100 text-blue-700 rounded font-bold text-sm">📷 拍照</button>
-                    <button @click="triggerUpload(false)" class="px-3 py-1 bg-green-100 text-green-700 rounded font-bold text-sm">📁 上傳圖片</button>
-                    <button @click="clearCanvas()" class="px-3 py-1 bg-gray-200 text-gray-700 rounded font-bold text-sm">🗑️ 清除畫板</button>
+                    <button @click="triggerUpload(true)" class="px-3 py-2 bg-blue-100 text-blue-800 rounded-lg font-bold text-sm flex-1">📷 拍照</button>
+                    <button @click="triggerUpload(false)" class="px-3 py-2 bg-green-100 text-green-800 rounded-lg font-bold text-sm flex-1">📁 相簿/圖片</button>
+                    <button @click="clearCanvas()" class="px-3 py-2 bg-gray-200 text-gray-700 rounded-lg font-bold text-sm">🗑️ 清空</button>
                 </div>
                 
-                <div class="border-2 border-gray-300 rounded-xl overflow-hidden bg-white shadow-inner">
-                    <canvas id="drawCanvas" width="320" height="320" class="cursor-crosshair bg-slate-50"></canvas>
+                <div class="border-4 border-gray-300 rounded-xl overflow-hidden bg-white shadow-inner relative">
+                    <canvas id="drawCanvas" width="300" height="300" class="cursor-crosshair bg-slate-50"></canvas>
                 </div>
 
                 <div class="flex justify-end w-full mt-4 gap-2">
-                    <button @click="showDrawModal = false" class="px-4 py-2 bg-gray-100 text-gray-600 rounded-lg font-bold text-sm">取消</button>
-                    <button @click="saveDrawing()" class="px-4 py-2 bg-purple-600 text-white rounded-lg font-bold text-sm">💾 儲存並套用</button>
+                    <button @click="showDrawModal = false" class="px-5 py-2 bg-gray-200 text-gray-700 rounded-xl font-bold">取消</button>
+                    <button @click="saveDrawing()" class="px-5 py-2 bg-purple-600 text-white rounded-xl font-bold shadow-lg">💾 儲存並套用</button>
                 </div>
             </div>
         </div>
@@ -175,14 +175,14 @@
             <div class="bg-white w-full max-w-md rounded-2xl p-6 shadow-2xl">
                 <h3 class="text-xl font-bold text-indigo-900 mb-4" x-text="modalType === 'add' ? '➕ 新增單詞' : '✏️ 編輯單詞'"></h3>
                 <div class="space-y-4">
-                    <div><label class="block text-sm font-bold text-gray-700 mb-1">卡組名稱</label><input type="text" x-model="modalData.deck" class="w-full border rounded-lg p-2 font-bold" :disabled="modalType === 'edit'"></div>
-                    <div><label class="block text-sm font-bold text-gray-700 mb-1">詞彙</label><input type="text" x-model="modalData.word" class="w-full border rounded-lg p-2 font-bold"></div>
-                    <div><label class="block text-sm font-bold text-gray-700 mb-1">圖片網址</label><input type="text" x-model="modalData.image" class="w-full border rounded-lg p-2 text-sm"></div>
-                    <div><label class="block text-sm font-bold text-gray-700 mb-1">例句</label><textarea x-model="modalData.example" class="w-full border rounded-lg p-2 text-sm" rows="2"></textarea></div>
+                    <div><label class="block text-sm font-bold text-gray-700 mb-1">卡組名稱</label><input type="text" x-model="modalData.deck" class="w-full border-2 border-gray-200 rounded-lg p-2 font-bold focus:border-indigo-500 outline-none" :disabled="modalType === 'edit'"></div>
+                    <div><label class="block text-sm font-bold text-gray-700 mb-1">詞彙</label><input type="text" x-model="modalData.word" class="w-full border-2 border-gray-200 rounded-lg p-2 font-bold focus:border-indigo-500 outline-none"></div>
+                    <div><label class="block text-sm font-bold text-gray-700 mb-1">圖片網址 (如有手繪則留空)</label><input type="text" x-model="modalData.image" class="w-full border-2 border-gray-200 rounded-lg p-2 text-sm focus:border-indigo-500 outline-none"></div>
+                    <div><label class="block text-sm font-bold text-gray-700 mb-1">例句</label><textarea x-model="modalData.example" class="w-full border-2 border-gray-200 rounded-lg p-2 text-sm focus:border-indigo-500 outline-none" rows="2"></textarea></div>
                 </div>
                 <div class="flex justify-end gap-3 mt-6">
-                    <button @click="showModal = false" class="px-4 py-2 bg-gray-200 rounded-lg font-bold">取消</button>
-                    <button @click="saveModalData()" class="px-4 py-2 bg-indigo-600 text-white rounded-lg font-bold">儲存</button>
+                    <button @click="showModal = false" class="px-5 py-2 bg-gray-200 rounded-xl font-bold">取消</button>
+                    <button @click="saveModalData()" class="px-5 py-2 bg-indigo-600 text-white rounded-xl font-bold shadow-lg">儲存</button>
                 </div>
             </div>
         </div>
@@ -214,7 +214,7 @@
                 init() {
                     this.deckNames = Object.keys(this.decksData);
                     if(this.deckNames.length > 0) this.currentDeckName = this.deckNames[0];
-                    const saved = localStorage.getItem('flashcard_progress_v8');
+                    const saved = localStorage.getItem('flashcard_progress_v9');
                     if(saved) {
                         try {
                             const progress = JSON.parse(saved);
@@ -227,7 +227,7 @@
                 },
                 
                 saveProgress() {
-                    localStorage.setItem('flashcard_progress_v8', JSON.stringify({ decks: this.decksData }));
+                    localStorage.setItem('flashcard_progress_v9', JSON.stringify({ decks: this.decksData }));
                 },
                 
                 get activeList() {
@@ -266,8 +266,24 @@
                 initCanvas() {
                     this.canvas = document.getElementById('drawCanvas');
                     this.ctx = this.canvas.getContext('2d');
-                    this.clearCanvas();
                     
+                    // 如果單詞本身已有手繪或拍攝照片，則載入畫布
+                    if (this.currentObj.image && this.currentObj.image.startsWith('data:image')) {
+                        const img = new Image();
+                        img.onload = () => {
+                            this.ctx.fillStyle = "#ffffff";
+                            this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+                            this.ctx.drawImage(img, 0, 0, this.canvas.width, this.canvas.height);
+                            this.setupCanvasDrawing();
+                        };
+                        img.src = this.currentObj.image;
+                    } else {
+                        this.clearCanvas();
+                        this.setupCanvasDrawing();
+                    }
+                },
+                
+                setupCanvasDrawing() {
                     let getPos = (e) => {
                         let rect = this.canvas.getBoundingClientRect();
                         let clientX = e.clientX || (e.touches && e.touches[0].clientX);
@@ -298,6 +314,7 @@
                             const img = new Image();
                             img.onload = () => {
                                 this.clearCanvas();
+                                // 計算等比例縮放以填滿或置中畫布
                                 const scale = Math.min(this.canvas.width / img.width, this.canvas.height / img.height);
                                 const w = img.width * scale;
                                 const h = img.height * scale;
@@ -306,7 +323,7 @@
                                 this.ctx.drawImage(img, x, y, w, h);
                                 this.ctx.lineWidth = 4;
                                 this.ctx.lineCap = 'round';
-                                this.ctx.strokeStyle = '#ef4444';
+                                this.ctx.strokeStyle = '#ef4444'; // 設定紅色塗鴉筆
                             };
                             img.src = event.target.result;
                         };
@@ -320,23 +337,23 @@
                     this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
                     this.ctx.lineWidth = 5;
                     this.ctx.lineCap = 'round';
-                    this.ctx.strokeStyle = '#1e1b4b';
+                    this.ctx.strokeStyle = '#1e1b4b'; // 設定預設深藍色畫筆
                 },
                 
                 saveDrawing() {
-                    // 使用 JPEG 格式壓縮
-                    const dataUrl = this.canvas.toDataURL("image/jpeg", 0.6);
+                    // 使用 JPEG 格式壓縮，控制檔案大小
+                    const dataUrl = this.canvas.toDataURL("image/jpeg", 0.7);
                     this.currentObj.image = dataUrl;
                     this.saveProgress();
                     this.showDrawModal = false;
                 },
                 
-                // === 使用 ExcelJS 產生實體圖片的 Excel 檔案 ===
+                // === 使用 ExcelJS 匯出包含「實體圖片」的即時 Excel ===
                 async exportExcelWithImages() {
                     const workbook = new ExcelJS.Workbook();
                     const worksheet = workbook.addWorksheet('Flashcards');
                     
-                    // 設定欄位寬度
+                    // 設定欄位
                     worksheet.columns = [
                         { header: '卡組名稱', key: 'deck', width: 20 },
                         { header: '詞彙', key: 'word', width: 20 },
@@ -345,13 +362,13 @@
                         { header: '狀態', key: 'status', width: 15 }
                     ];
                     
-                    // 置中對齊標題
                     worksheet.getRow(1).eachCell(cell => {
-                        cell.font = { bold: true };
+                        cell.font = { bold: true, size: 12, color: { argb: 'FFFFFFFF' } };
+                        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF4F46E5' } }; // Indigo bg
                         cell.alignment = { vertical: 'middle', horizontal: 'center' };
                     });
 
-                    let rowIndex = 2; // 資料從第二列開始
+                    let rowIndex = 2;
                     for (let deck in this.decksData) {
                         for (let item of this.decksData[deck]) {
                             const row = worksheet.addRow({
@@ -361,36 +378,28 @@
                                 status: item.status
                             });
                             
-                            // 將該列高度拉高，以便容納圖片
-                            worksheet.getRow(rowIndex).height = 100;
-                            
-                            // 所有的 Cell 置中
-                            row.eachCell(cell => {
-                                cell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
-                            });
+                            // 高度設為 110 確保圖片顯示良好
+                            worksheet.getRow(rowIndex).height = 110;
+                            row.eachCell(cell => { cell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true }; });
 
+                            // 處理圖片嵌入
                             if (item.image && item.image.startsWith('data:image')) {
                                 try {
-                                    // 移除 Base64 的 header 資訊 (例如: data:image/jpeg;base64,)
                                     const base64Data = item.image.split(',')[1];
                                     const ext = item.image.includes('png') ? 'png' : 'jpeg';
                                     
-                                    const imageId = workbook.addImage({
-                                        base64: base64Data,
-                                        extension: ext,
-                                    });
+                                    const imageId = workbook.addImage({ base64: base64Data, extension: ext });
                                     
-                                    // 插入圖片到對應的儲存格 (col 2 代表 C 欄)
+                                    // 插入至 C 欄 (col: 2, 0-based indexing for addImage position)
                                     worksheet.addImage(imageId, {
                                         tl: { col: 2, row: rowIndex - 1 },
-                                        ext: { width: 120, height: 120 },
+                                        ext: { width: 130, height: 130 },
                                         editAs: 'oneCell'
                                     });
                                 } catch(e) {
                                     console.error("圖片匯出失敗:", e);
                                 }
                             } else if (item.image) {
-                                // 如果只是一般網址，則以文字寫入
                                 row.getCell('visual_img').value = item.image;
                             }
                             
@@ -398,10 +407,12 @@
                         }
                     }
 
-                    // 輸出檔案並下載
                     const buffer = await workbook.xlsx.writeBuffer();
                     const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-                    saveAs(blob, "my_flashcards_with_real_photos.xlsx");
+                    
+                    // 檔案名稱加上日期標記
+                    const dateStr = new Date().toISOString().slice(0,10);
+                    saveAs(blob, `Flashcards_即時進度_${dateStr}.xlsx`);
                 },
                 
                 saveModalData() {
@@ -417,7 +428,12 @@
                     } else {
                         const obj = this.currentObj;
                         obj.word = word;
-                        obj.image = this.modalData.image.trim();
+                        // 若原先有手繪圖片，且沒有在表單內強制覆蓋，則保留手繪
+                        if (obj.image.startsWith('data:image') && this.modalData.image.trim() === '') {
+                             // 保留原照片
+                        } else {
+                             obj.image = this.modalData.image.trim();
+                        }
                         obj.example = this.modalData.example.trim();
                     }
                     this.saveProgress();
@@ -440,20 +456,6 @@
                         [arr[i], arr[j]] = [arr[j], arr[i]];
                     }
                     this.gridItems = arr.slice(0, 9);
-                },
-                
-                downloadProgress() {
-                    this.saveProgress();
-                    const dataStr = localStorage.getItem('flashcard_progress_v8');
-                    const blob = new Blob([dataStr], {type: "application/json"});
-                    const url = URL.createObjectURL(blob);
-                    const a = document.createElement('a');
-                    a.href = url;
-                    a.download = 'progress.json';
-                    document.body.appendChild(a);
-                    a.click();
-                    document.body.removeChild(a);
-                    URL.revokeObjectURL(url);
                 },
                 
                 speakWord(wordText) {
