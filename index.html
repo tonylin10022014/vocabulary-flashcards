@@ -132,7 +132,7 @@
             <div class="grid grid-cols-3 gap-3 w-full">
                 <template x-for="item in gridItems" :key="Math.random()">
                     <div class="bg-white border-2 border-indigo-100 shadow-sm rounded-xl aspect-square flex flex-col items-center justify-center p-2 cursor-pointer" @click="speakWord(item.word)">
-                        <template x-if="gridDisplayType === 'word'"><span class="text-3xl font-bold text-slate-800" x-text="item.word"></span></template>
+                        <template x-if="gridDisplayType === 'word'"><span class="text-3xl md:text-5xl font-bold text-slate-800" x-text="item.word"></span></template>
                         <template x-if="gridDisplayType === 'example'"><span class="text-sm font-bold text-slate-600 text-center" x-text="item.example || '(無例句)'"></span></template>
                         <template x-if="gridDisplayType === 'image'">
                             <div class="w-full h-full flex items-center justify-center">
@@ -205,11 +205,13 @@
                 canvas: null,
                 ctx: null,
                 isDrawing: false,
+                gridItems: [],
+                gridDisplayType: 'word',
                 
                 init() {
                     this.deckNames = Object.keys(this.decksData);
                     if(this.deckNames.length > 0) this.currentDeckName = this.deckNames[0];
-                    const saved = localStorage.getItem('flashcard_progress_v6');
+                    const saved = localStorage.getItem('flashcard_progress_v7');
                     if(saved) {
                         try {
                             const progress = JSON.parse(saved);
@@ -222,7 +224,7 @@
                 },
                 
                 saveProgress() {
-                    localStorage.setItem('flashcard_progress_v6', JSON.stringify({ decks: this.decksData }));
+                    localStorage.setItem('flashcard_progress_v7', JSON.stringify({ decks: this.decksData }));
                 },
                 
                 get activeList() {
@@ -361,7 +363,21 @@
                 },
                 
                 startStudyMode() { if(this.activeList.length === 0) return; this.currentMode = 'study'; },
-                startGridMode() { if(this.activeList.length === 0) return; this.currentMode = 'grid'; },
+                
+                startGridMode() { 
+                    if(this.activeList.length === 0) return; 
+                    this.currentMode = 'grid'; 
+                    this.initGrid(); 
+                },
+                
+                initGrid() {
+                    let arr = [...this.activeList];
+                    for (let i = arr.length - 1; i > 0; i--) {
+                        const j = Math.floor(Math.random() * (i + 1));
+                        [arr[i], arr[j]] = [arr[j], arr[i]];
+                    }
+                    this.gridItems = arr.slice(0, 9);
+                },
                 
                 speakWord(wordText) {
                     if (!wordText) return;
