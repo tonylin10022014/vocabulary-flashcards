@@ -20,12 +20,13 @@
     <div x-data="flashcardApp()" class="w-full max-w-2xl px-4 flex flex-col items-center">
         
         <div x-show="currentMode === 'normal'" class="w-full flex flex-col items-center">
+            
             <div class="w-full flex justify-between items-center mb-3">
                 <h1 class="text-2xl font-bold text-indigo-900">學習閃卡系統</h1>
                 <div class="flex gap-2">
                     <button @click="openAddModal()" class="bg-indigo-600 text-white px-3 py-2 rounded shadow hover:bg-indigo-700 font-bold text-sm">➕ 新增</button>
                     <button @click="exportExcelWithImages()" class="bg-blue-600 text-white px-3 py-2 rounded shadow hover:bg-blue-700 font-bold text-sm flex items-center gap-1">
-                        📤 下載 Excel (含照片)
+                        📤 下載 Excel
                     </button>
                 </div>
             </div>
@@ -38,6 +39,27 @@
                         <span x-text="deck"></span>
                     </button>
                 </template>
+            </div>
+
+            <!-- 動態顯示模式與發音設定 -->
+            <div class="flex flex-wrap justify-between items-center w-full mb-3 bg-white p-3 rounded-lg shadow-sm border border-gray-100 gap-3">
+                <div class="flex items-center gap-2 cursor-pointer" @click="autoPronounce = !autoPronounce; if(autoPronounce) speakWord(currentObj.word)">
+                    <span class="text-sm font-bold text-gray-700">自動發音</span>
+                    <div class="relative inline-flex h-6 w-11 items-center rounded-full transition-colors" :class="autoPronounce ? 'bg-green-500' : 'bg-gray-300'">
+                        <span class="inline-block h-4 w-4 transform rounded-full bg-white transition-transform" :class="autoPronounce ? 'translate-x-6' : 'translate-x-1'"></span>
+                    </div>
+                </div>
+                
+                <div class="flex items-center gap-2 flex-1 justify-end">
+                    <span class="text-sm font-bold text-gray-700">正面提示:</span>
+                    <select x-model="displayMode" class="border-2 border-indigo-200 rounded-lg p-1 text-sm font-bold text-indigo-800 outline-none focus:border-indigo-500 bg-indigo-50">
+                        <option value="word">僅詞彙 (Words only)</option>
+                        <option value="example">僅例句 (Sample only)</option>
+                        <option value="photo">僅照片 (Photo only)</option>
+                        <option value="word_example">詞彙 + 例句 (Words+Sample)</option>
+                        <option value="all">詞彙 + 例句 + 照片 (All)</option>
+                    </select>
+                </div>
             </div>
 
             <div class="flex justify-between items-center w-full mb-4 gap-2">
@@ -55,32 +77,48 @@
                 <span class="text-indigo-800">進度: <span x-text="activeList.length > 0 ? currentIndex + 1 : 0"></span> / <span x-text="activeList.length"></span></span>
             </div>
 
+            <!-- 主閃卡 -->
             <template x-if="activeList.length > 0">
                 <div class="w-full h-80 perspective-1000 relative cursor-pointer select-none mb-4" 
                      :class="showDetails ? 'is-flipped' : ''" 
                      @click="showDetails = !showDetails">
                     <div class="flip-card-inner w-full h-full relative shadow-xl rounded-2xl">
-                        <div class="flip-card-front bg-white rounded-2xl flex items-center justify-center border-t-8" 
+                        
+                        <!-- 正面 -->
+                        <div class="flip-card-front bg-white rounded-2xl flex flex-col items-center justify-center border-t-8 p-4 relative" 
                              :class="currentObj.status === '已記住' ? 'border-green-500' : 'border-indigo-500'">
-                            <div class="absolute top-4 right-4 flex gap-2">
-                                <button @click.stop="openDrawModal()" class="text-gray-400 hover:text-purple-600 p-1 font-bold text-sm bg-purple-50 px-2 rounded border border-purple-100" title="拍照/圖片塗鴉">📷 照片/塗鴉</button>
-                                <button @click.stop="openEditModal()" class="text-gray-400 hover:text-indigo-600 p-1 font-bold text-sm bg-indigo-50 px-2 rounded border border-indigo-100" title="編輯單詞">✏️</button>
-                                <div @click.stop="speakWord(currentObj.word)" title="播放發音">
-                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-indigo-400 hover:text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <div class="absolute top-2 right-2 flex gap-1 z-10">
+                                <button @click.stop="openDrawModal()" class="text-gray-400 hover:text-purple-600 p-1 font-bold text-sm bg-purple-50 px-2 rounded border border-purple-100" title="開啟圖片/塗鴉畫板">📷 照片/塗鴉</button>
+                                <button @click.stop="openEditModal()" class="text-gray-400 hover:text-indigo-600 p-1 font-bold text-sm bg-indigo-50 px-2 rounded border border-indigo-100">✏️</button>
+                                <div @click.stop="speakWord(currentObj.word)" class="p-1 cursor-pointer">
+                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-indigo-400 hover:text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5 10v4a2 2 0 002 2h2.586l4.707 4.707A1 1 0 0016 19.318V4.682a1 1 0 00-1.707-.707L9.586 8H7a2 2 0 00-2 2z" />
                                     </svg>
                                 </div>
                             </div>
-                            <span class="text-[5rem] md:text-[6rem] font-bold text-slate-800 text-center px-4" x-text="currentObj.word"></span>
+
+                            <div class="w-full flex-1 flex flex-col items-center justify-center overflow-hidden mt-6">
+                                <template x-if="displayMode === 'photo' || displayMode === 'all'">
+                                    <img x-show="currentObj.image" :src="currentObj.image" class="max-h-32 object-contain mb-3 rounded shadow-sm">
+                                </template>
+                                <template x-if="displayMode === 'word' || displayMode === 'word_example' || displayMode === 'all'">
+                                    <span class="text-[3rem] md:text-[4.5rem] font-bold text-slate-800 text-center leading-tight mb-2" x-text="currentObj.word"></span>
+                                </template>
+                                <template x-if="displayMode === 'example' || displayMode === 'word_example' || displayMode === 'all'">
+                                    <span class="text-sm md:text-lg text-slate-600 text-center px-4 line-clamp-3" x-text="currentObj.example || '(無例句)'"></span>
+                                </template>
+                            </div>
                         </div>
-                        <div class="flip-card-back bg-slate-50 rounded-2xl border-4 border-indigo-200 flex flex-col items-center justify-center p-6 text-center overflow-hidden">
+
+                        <!-- 背面 -->
+                        <div class="flip-card-back bg-slate-50 rounded-2xl border-4 border-indigo-200 flex flex-col items-center justify-center p-4 text-center overflow-hidden relative">
+                            <div class="absolute top-2 right-2 p-1 text-gray-400 text-xs font-bold">📖 背面解答</div>
                             <template x-if="currentObj.image">
-                                <img :src="currentObj.image" class="h-40 object-contain mb-3 rounded border border-gray-300 bg-white shadow-sm" alt="illustration">
+                                <img :src="currentObj.image" class="max-h-28 object-contain mb-3 rounded border border-gray-300 bg-white shadow-sm">
                             </template>
-                            <template x-if="!currentObj.image"><div class="h-6 text-gray-400 text-sm italic">(點擊右上角「📷」拍攝實物)</div></template>
                             <div class="text-2xl font-bold text-indigo-900 mb-2" x-text="currentObj.word"></div>
                             <template x-if="currentObj.example">
-                                <div class="text-lg text-slate-700 bg-white p-3 rounded-lg shadow-sm w-full" x-text="currentObj.example"></div>
+                                <div class="text-sm text-slate-700 bg-white p-3 rounded-lg shadow-sm w-full" x-text="currentObj.example"></div>
                             </template>
                         </div>
                     </div>
@@ -97,13 +135,25 @@
             </div>
         </div>
 
-        <div x-show="currentMode === 'study'" class="fixed inset-0 bg-white z-50 flex flex-col items-center justify-center select-none" style="display: none;">
-            <button @click="currentMode = 'normal'" class="absolute top-6 right-6 p-4 text-gray-300 hover:text-red-500 text-xl font-bold z-50">✖ 離開</button>
-            <div @click="nextCard()" class="w-full h-full flex items-center justify-center cursor-pointer">
-                <span class="text-[18vw] md:text-[15vw] font-black text-slate-800" x-text="currentObj.word"></span>
+        <!-- 純淨學習模式 -->
+        <div x-show="currentMode === 'study'" class="fixed inset-0 bg-white z-50 flex flex-col items-center justify-center select-none p-4" style="display: none;">
+            <button @click="currentMode = 'normal'" class="absolute top-6 right-6 p-4 text-gray-400 hover:text-red-500 text-xl font-bold z-50 bg-gray-100 rounded-full">✖</button>
+            
+            <div @click="nextCard()" class="w-full h-full flex flex-col items-center justify-center cursor-pointer">
+                 <template x-if="displayMode === 'photo' || displayMode === 'all'">
+                     <img x-show="currentObj.image" :src="currentObj.image" class="max-h-[40vh] max-w-full object-contain mb-8 rounded-xl shadow-lg border-4 border-gray-100">
+                 </template>
+                 <template x-if="displayMode === 'word' || displayMode === 'word_example' || displayMode === 'all'">
+                     <span class="text-[12vw] md:text-[8vw] font-black text-slate-800 text-center leading-tight mb-6" x-text="currentObj.word"></span>
+                 </template>
+                 <template x-if="displayMode === 'example' || displayMode === 'word_example' || displayMode === 'all'">
+                     <span class="text-[5vw] md:text-[3vw] font-bold text-slate-600 text-center px-8" x-text="currentObj.example || '(無例句)'"></span>
+                 </template>
             </div>
+            <div class="absolute bottom-6 text-gray-300 text-sm font-bold">點擊畫面任意處切換下一個</div>
         </div>
 
+        <!-- 9宮格檢測模式 -->
         <div x-show="currentMode === 'grid'" class="w-full flex flex-col items-center" style="display: none;">
             <div class="w-full flex justify-between items-center mb-6">
                 <button @click="currentMode = 'normal'" class="text-indigo-600 font-bold bg-indigo-50 px-4 py-2 rounded-lg">⬅️ 返回</button>
@@ -133,18 +183,33 @@
             </div>
         </div>
 
+        <!-- 📷 拍攝/塗鴉/網路配圖 Modal -->
         <div x-show="showDrawModal" class="fixed inset-0 bg-black bg-opacity-70 z-50 flex items-center justify-center p-4" style="display: none;">
-            <div class="bg-white w-full max-w-md rounded-2xl p-5 shadow-2xl flex flex-col items-center">
-                <h3 class="text-lg font-bold text-purple-800 mb-2">📷 拍攝/塗鴉：<span x-text="currentObj.word"></span></h3>
+            <div class="bg-white w-full max-w-md rounded-2xl p-5 shadow-2xl flex flex-col items-center relative">
+                <h3 class="text-lg font-bold text-purple-800 mb-2">📷 拍攝/塗鴉標註：<span x-text="currentObj.word"></span></h3>
+                
                 <div class="flex flex-wrap justify-center gap-2 mb-3 w-full">
-                    <button @click="triggerUpload(true)" class="px-3 py-2 bg-blue-100 text-blue-800 rounded-lg font-bold text-sm flex-1">📷 拍照</button>
-                    <button @click="triggerUpload(false)" class="px-3 py-2 bg-green-100 text-green-800 rounded-lg font-bold text-sm flex-1">📁 相簿/圖片</button>
-                    <button @click="clearCanvas()" class="px-3 py-2 bg-gray-200 text-gray-700 rounded-lg font-bold text-sm">🗑️ 清空</button>
+                    <button @click="fetchAndLoadWebImage()" class="px-3 py-2 bg-purple-600 text-white rounded-lg font-bold text-sm flex-1 shadow hover:bg-purple-700 flex items-center justify-center gap-1">
+                        🌐 自動找圖
+                    </button>
+                    <button @click="triggerUpload(true)" class="px-2 py-2 bg-blue-100 text-blue-800 rounded-lg font-bold text-sm">📷 拍照</button>
+                    <button @click="triggerUpload(false)" class="px-2 py-2 bg-green-100 text-green-800 rounded-lg font-bold text-sm">📁 相簿</button>
+                    <button @click="clearCanvas()" class="px-2 py-2 bg-gray-200 text-gray-700 rounded-lg font-bold text-sm">🗑️ 清空</button>
                 </div>
+
+                <!-- 搜尋圖片狀態提示 -->
+                <div x-show="isSearchingImage" class="absolute inset-0 bg-white bg-opacity-90 z-20 flex flex-col items-center justify-center rounded-2xl">
+                    <div class="animate-spin rounded-full h-10 w-10 border-b-2 border-purple-700 mb-2"></div>
+                    <span class="font-bold text-purple-900 text-sm">🔍 正在搜尋相關網路照片...</span>
+                </div>
+                
                 <div class="border-4 border-gray-300 rounded-xl overflow-hidden bg-white shadow-inner relative">
                     <canvas id="drawCanvas" width="300" height="300" class="cursor-crosshair bg-slate-50"></canvas>
                 </div>
-                <div class="flex justify-end w-full mt-4 gap-2">
+                
+                <p class="text-xs text-gray-400 mt-2">提示：自動配圖或上傳圖片後，可直接在上方塗鴉標註！</p>
+
+                <div class="flex justify-end w-full mt-3 gap-2">
                     <button @click="showDrawModal = false" class="px-5 py-2 bg-gray-200 text-gray-700 rounded-xl font-bold">取消</button>
                     <button @click="saveDrawing()" class="px-5 py-2 bg-purple-600 text-white rounded-xl font-bold shadow-lg">💾 儲存並套用</button>
                 </div>
@@ -172,7 +237,7 @@
     <script>
         function flashcardApp() {
             return {
-                decksData: {"中文認字卡 (示範)": [{"word": "爸爸", "image": "data:image/jpeg;base64,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", "example": "", "status": "需複習"}, {"word": "手套", "image": "", "example": "", "status": "已記住"}, {"word": "媽媽", "image": "", "example": "", "status": "已記住"}, {"word": "月", "image": "", "example": "", "status": "已記住"}, {"word": "菜", "image": "", "example": "", "status": "已記住"}, {"word": "冬", "image": "", "example": "", "status": "已記住"}, {"word": "口", "image": "", "example": "", "status": "已記住"}, {"word": "人", "image": "", "example": "", "status": "已記住"}, {"word": "手", "image": "", "example": "", "status": "已記住"}, {"word": "女", "image": "", "example": "", "status": "已記住"}, {"word": "果", "image": "", "example": "", "status": "已記住"}, {"word": "魚", "image": "", "example": "", "status": "已記住"}, {"word": "眼", "image": "", "example": "", "status": "已記住"}, {"word": "耳", "image": "", "example": "", "status": "已記住"}, {"word": "門", "image": "", "example": "", "status": "已記住"}, {"word": "男", "image": "", "example": "", "status": "已記住"}], "英文詞彙 (示範)": [{"word": "apple", "image": "", "example": "", "status": "需複習"}, {"word": "ant", "image": "", "example": "", "status": "需複習"}, {"word": "ball", "image": "", "example": "", "status": "需複習"}, {"word": "bus", "image": "", "example": "", "status": "需複習"}, {"word": "cat", "image": "", "example": "", "status": "需複習"}, {"word": "cup", "image": "", "example": "", "status": "需複習"}, {"word": "dog", "image": "", "example": "", "status": "需複習"}, {"word": "door", "image": "", "example": "", "status": "需複習"}, {"word": "egg", "image": "", "example": "", "status": "需複習"}, {"word": "elephant", "image": "", "example": "", "status": "需複習"}, {"word": "fish", "image": "", "example": "", "status": "需複習"}, {"word": "fan", "image": "", "example": "", "status": "需複習"}, {"word": "girl", "image": "", "example": "", "status": "需複習"}, {"word": "grapes", "image": "", "example": "", "status": "需複習"}, {"word": "hat", "image": "", "example": "", "status": "需複習"}, {"word": "hand", "image": "", "example": "", "status": "需複習"}, {"word": "igloo", "image": "", "example": "", "status": "需複習"}, {"word": "ink", "image": "", "example": "", "status": "需複習"}, {"word": "jam", "image": "", "example": "", "status": "需複習"}, {"word": "juice", "image": "", "example": "", "status": "需複習"}, {"word": "kite", "image": "", "example": "", "status": "需複習"}, {"word": "king", "image": "", "example": "", "status": "需複習"}]},
+                decksData: {"中文認字卡 (示範)": [{"word": "爸爸", "image": "", "example": "", "status": "需複習"}, {"word": "手套", "image": "", "example": "", "status": "需複習"}, {"word": "媽媽", "image": "", "example": "", "status": "需複習"}, {"word": "月", "image": "", "example": "", "status": "需複習"}, {"word": "菜", "image": "", "example": "", "status": "需複習"}, {"word": "冬", "image": "", "example": "", "status": "需複習"}, {"word": "口", "image": "", "example": "", "status": "需複習"}, {"word": "人", "image": "", "example": "", "status": "需複習"}, {"word": "手", "image": "", "example": "", "status": "需複習"}, {"word": "女", "image": "", "example": "", "status": "需複習"}, {"word": "果", "image": "", "example": "", "status": "需複習"}, {"word": "魚", "image": "", "example": "", "status": "需複習"}, {"word": "眼", "image": "", "example": "", "status": "需複習"}, {"word": "耳", "image": "", "example": "", "status": "需複習"}, {"word": "門", "image": "", "example": "", "status": "需複習"}, {"word": "男", "image": "", "example": "", "status": "需複習"}], "英文詞彙 (示範)": [{"word": "apple", "image": "", "example": "", "status": "需複習"}, {"word": "ant", "image": "", "example": "", "status": "需複習"}, {"word": "ball", "image": "", "example": "", "status": "需複習"}, {"word": "bus", "image": "", "example": "", "status": "需複習"}, {"word": "cat", "image": "", "example": "", "status": "需複習"}, {"word": "cup", "image": "", "example": "", "status": "需複習"}, {"word": "dog", "image": "", "example": "", "status": "需複習"}, {"word": "door", "image": "", "example": "", "status": "需複習"}, {"word": "egg", "image": "", "example": "", "status": "需複習"}, {"word": "elephant", "image": "", "example": "", "status": "需複習"}, {"word": "fish", "image": "", "example": "", "status": "需複習"}, {"word": "fan", "image": "", "example": "", "status": "需複習"}, {"word": "girl", "image": "", "example": "", "status": "需複習"}, {"word": "grapes", "image": "", "example": "", "status": "需複習"}, {"word": "hat", "image": "", "example": "", "status": "需複習"}, {"word": "hand", "image": "", "example": "", "status": "需複習"}, {"word": "igloo", "image": "", "example": "", "status": "需複習"}, {"word": "ink", "image": "", "example": "", "status": "需複習"}, {"word": "jam", "image": "", "example": "", "status": "需複習"}, {"word": "juice", "image": "", "example": "", "status": "需複習"}, {"word": "kite", "image": "", "example": "", "status": "需複習"}, {"word": "king", "image": "", "example": "", "status": "需複習"}]},
                 deckNames: [],
                 currentDeckName: '',
                 currentIndex: 0,
@@ -180,8 +245,12 @@
                 currentMode: 'normal',
                 filterMode: 'review',
                 
+                autoPronounce: true,
+                displayMode: 'word', 
+                
                 showModal: false,
                 showDrawModal: false,
+                isSearchingImage: false,
                 modalType: 'add',
                 modalData: { deck: '', word: '', image: '', example: '', status: '需複習' },
                 
@@ -191,7 +260,7 @@
                 init() {
                     this.deckNames = Object.keys(this.decksData);
                     if(this.deckNames.length > 0) this.currentDeckName = this.deckNames[0];
-                    const saved = localStorage.getItem('flashcard_progress_v12');
+                    const saved = localStorage.getItem('flashcard_progress_v14');
                     if(saved) {
                         try {
                             const progress = JSON.parse(saved);
@@ -200,7 +269,7 @@
                     }
                 },
                 
-                saveProgress() { localStorage.setItem('flashcard_progress_v12', JSON.stringify({ decks: this.decksData })); },
+                saveProgress() { localStorage.setItem('flashcard_progress_v14', JSON.stringify({ decks: this.decksData })); },
                 
                 get activeList() {
                     const list = this.decksData[this.currentDeckName] || [];
@@ -215,9 +284,26 @@
                 get knownCount() { return (this.decksData[this.currentDeckName] || []).filter(d => d.status === '已記住').length; },
                 get reviewCount() { return (this.decksData[this.currentDeckName] || []).filter(d => d.status !== '已記住').length; },
                 
-                setDeck(deck) { this.currentDeckName = deck; this.currentIndex = 0; this.showDetails = false; },
-                nextCard() { if(this.activeList.length === 0) return; this.showDetails = false; this.currentIndex = (this.currentIndex + 1) % this.activeList.length; },
-                prevCard() { if(this.activeList.length === 0) return; this.showDetails = false; this.currentIndex = (this.currentIndex - 1 + this.activeList.length) % this.activeList.length; },
+                setDeck(deck) { 
+                    this.currentDeckName = deck; 
+                    this.currentIndex = 0; 
+                    this.showDetails = false; 
+                    if (this.autoPronounce && this.activeList.length > 0) this.speakWord(this.currentObj.word);
+                },
+                
+                nextCard() { 
+                    if(this.activeList.length === 0) return; 
+                    this.showDetails = false; 
+                    this.currentIndex = (this.currentIndex + 1) % this.activeList.length; 
+                    if (this.autoPronounce) this.speakWord(this.currentObj.word);
+                },
+                
+                prevCard() { 
+                    if(this.activeList.length === 0) return; 
+                    this.showDetails = false; 
+                    this.currentIndex = (this.currentIndex - 1 + this.activeList.length) % this.activeList.length; 
+                    if (this.autoPronounce) this.speakWord(this.currentObj.word);
+                },
                 
                 markStatus(status) {
                     if(this.activeList.length === 0) return;
@@ -257,6 +343,72 @@
                     this.canvas.ontouchstart = (e) => { this.isDrawing = true; let pos = getPos(e); this.ctx.beginPath(); this.ctx.moveTo(pos.x, pos.y); e.preventDefault(); };
                     this.canvas.ontouchmove = (e) => { if(!this.isDrawing) return; let pos = getPos(e); this.ctx.lineTo(pos.x, pos.y); this.ctx.stroke(); e.preventDefault(); };
                     this.canvas.ontouchend = () => { this.isDrawing = false; };
+                },
+
+                // === 網路自動配圖並繪製至 Canvas 供塗鴉 ===
+                async fetchAndLoadWebImage() {
+                    const word = this.currentObj.word;
+                    if(!word || word === "無資料") return;
+                    
+                    this.isSearchingImage = true;
+                    try {
+                        let imgUrl = null;
+                        const isEng = /^[a-zA-Z\s]+$/.test(word);
+                        const lang = isEng ? 'en' : 'zh';
+                        
+                        // 1. 優先嘗試維基百科摘要 API
+                        try {
+                            const wikiRes = await fetch(`https://${lang}.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(word)}`);
+                            if(wikiRes.ok) {
+                                const wikiData = await wikiRes.json();
+                                if(wikiData.thumbnail && wikiData.thumbnail.source) {
+                                    imgUrl = wikiData.thumbnail.source;
+                                }
+                            }
+                        } catch(e) {}
+                        
+                        // 2. 備用：Wikimedia Commons 搜尋 API
+                        if(!imgUrl) {
+                            try {
+                                const commRes = await fetch(`https://commons.wikimedia.org/w/api.php?action=query&generator=search&gsrsearch=${encodeURIComponent(word)}&gsrnamespace=6&gsrlimit=1&prop=imageinfo&iiprop=url&iiurlwidth=500&format=json&origin=*`);
+                                const commData = await commRes.json();
+                                if(commData.query && commData.query.pages) {
+                                    const pages = Object.values(commData.query.pages);
+                                    if(pages.length > 0 && pages[0].imageinfo && pages[0].imageinfo[0]) {
+                                        imgUrl = pages[0].imageinfo[0].thumburl || pages[0].imageinfo[0].url;
+                                    }
+                                }
+                            } catch(e) {}
+                        }
+
+                        if(imgUrl) {
+                            // 使用 fetch 轉為 blob 以防 CORS 導致 Canvas 污染
+                            const imgRes = await fetch(imgUrl);
+                            const blob = await imgRes.blob();
+                            const reader = new FileReader();
+                            reader.onload = (evt) => {
+                                const img = new Image();
+                                img.onload = () => {
+                                    this.clearCanvas();
+                                    const scale = Math.min(this.canvas.width / img.width, this.canvas.height / img.height);
+                                    const w = img.width * scale, h = img.height * scale;
+                                    const x = (this.canvas.width - w) / 2, y = (this.canvas.height - h) / 2;
+                                    this.ctx.drawImage(img, x, y, w, h);
+                                    // 將畫筆設為鮮豔的紅色，方便使用者標註照片
+                                    this.ctx.lineWidth = 4; this.ctx.lineCap = 'round'; this.ctx.strokeStyle = '#ef4444';
+                                    this.isSearchingImage = false;
+                                };
+                                img.src = evt.target.result;
+                            };
+                            reader.readAsDataURL(blob);
+                        } else {
+                            alert('未找到相關圖片，請嘗試拍照或自行上傳。');
+                            this.isSearchingImage = false;
+                        }
+                    } catch(err) {
+                        alert('搜尋圖片時發生錯誤：' + err.message);
+                        this.isSearchingImage = false;
+                    }
                 },
                 
                 triggerUpload(capture) {
@@ -359,7 +511,11 @@
                     this.saveProgress(); this.showModal = false; this.currentDeckName = deck;
                 },
                 
-                startStudyMode() { if(this.activeList.length === 0) return; this.currentMode = 'study'; },
+                startStudyMode() { 
+                    if(this.activeList.length === 0) return; 
+                    this.currentMode = 'study'; 
+                    if (this.autoPronounce) this.speakWord(this.currentObj.word);
+                },
                 startGridMode() { if(this.activeList.length === 0) return; this.currentMode = 'grid'; this.initGrid(); },
                 initGrid() {
                     let arr = [...this.activeList];
@@ -367,7 +523,9 @@
                     this.gridItems = arr.slice(0, 9);
                 },
                 speakWord(wordText) {
-                    if (!wordText) return; const synth = window.speechSynthesis; synth.cancel();
+                    if (!wordText) return; 
+                    const synth = window.speechSynthesis; 
+                    synth.cancel();
                     const utterance = new SpeechSynthesisUtterance(wordText);
                     utterance.lang = this.currentDeckName.includes('英文') || /^[a-zA-Z\s]+$/.test(wordText) ? 'en-US' : 'zh-HK';
                     synth.speak(utterance);
