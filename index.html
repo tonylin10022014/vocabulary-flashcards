@@ -11,7 +11,6 @@
     <style>
         .flip-card-inner { transition: transform 0.6s; transform-style: preserve-3d; }
         .is-flipped .flip-card-inner { transform: rotateY(180deg); }
-        /* 修復截圖中的排版問題：正面背面必須是 absolute 才能互相重疊 */
         .flip-card-front, .flip-card-back { backface-visibility: hidden; position: absolute; top:0; left:0; width:100%; height:100%; }
         .flip-card-back { transform: rotateY(180deg); }
         canvas { touch-action: none; }
@@ -42,6 +41,7 @@
                 </template>
             </div>
 
+            <!-- 動態顯示模式與發音設定 -->
             <div class="flex flex-wrap justify-between items-center w-full mb-3 bg-white p-3 rounded-lg shadow-sm border border-gray-100 gap-3">
                 <div class="flex items-center gap-2 cursor-pointer" @click="autoPronounce = !autoPronounce; if(autoPronounce) speakWord(currentObj.word)">
                     <span class="text-sm font-bold text-gray-700">自動發音</span>
@@ -53,11 +53,13 @@
                 <div class="flex items-center gap-2 flex-1 justify-end">
                     <span class="text-sm font-bold text-gray-700">正面提示:</span>
                     <select x-model="displayMode" class="border-2 border-indigo-200 rounded-lg p-1 text-sm font-bold text-indigo-800 outline-none focus:border-indigo-500 bg-indigo-50">
-                        <option value="word">僅詞彙 (Words only)</option>
-                        <option value="example">僅例句 (Sample only)</option>
+                        <option value="word">僅詞彙 (Word only)</option>
+                        <option value="translation">僅翻譯 (Translation only)</option>
+                        <option value="example">僅例句 (Example only)</option>
                         <option value="photo">僅照片 (Photo only)</option>
-                        <option value="word_example">詞彙 + 例句 (Words+Sample)</option>
-                        <option value="all">詞彙 + 例句 + 照片 (All)</option>
+                        <option value="word_translation">詞彙 + 翻譯 (Word+Trans)</option>
+                        <option value="word_example">詞彙 + 例句 (Word+Example)</option>
+                        <option value="all">全顯示 (All Combined)</option>
                     </select>
                 </div>
             </div>
@@ -77,19 +79,19 @@
                 <span class="text-indigo-800">進度: <span x-text="activeList.length > 0 ? currentIndex + 1 : 0"></span> / <span x-text="activeList.length"></span></span>
             </div>
 
+            <!-- 主閃卡 -->
             <template x-if="activeList.length > 0">
-                <!-- 這裡的 relative 很重要，但不要加在內部的 flip-card-front 上 -->
                 <div class="w-full h-80 perspective-1000 relative cursor-pointer select-none mb-4" 
                      :class="showDetails ? 'is-flipped' : ''" 
                      @click="showDetails = !showDetails">
                     <div class="flip-card-inner w-full h-full relative shadow-xl rounded-2xl">
                         
-                        <!-- 正面 (已經移除了會破壞版面的 relative class) -->
+                        <!-- 正面 -->
                         <div class="flip-card-front bg-white rounded-2xl flex flex-col items-center justify-center border-t-8 p-4" 
                              :class="currentObj.status === '已記住' ? 'border-green-500' : 'border-indigo-500'">
                             <div class="absolute top-2 right-2 flex gap-1 z-10">
-                                <button @click.stop="openDrawModal()" class="text-gray-400 hover:text-purple-600 p-1 font-bold text-sm bg-purple-50 px-2 rounded border border-purple-100" title="開啟圖片/塗鴉畫板">📷 照片/塗鴉</button>
-                                <button @click.stop="openEditModal()" class="text-gray-400 hover:text-indigo-600 p-1 font-bold text-sm bg-indigo-50 px-2 rounded border border-indigo-100">✏️</button>
+                                <button @click.stop="openDrawModal()" class="text-gray-400 hover:text-purple-600 p-1 font-bold text-sm bg-purple-50 px-2 rounded border border-purple-100" title="開啟圖片/塗鴉畫板">📷 圖片</button>
+                                <button @click.stop="openEditModal()" class="text-gray-400 hover:text-indigo-600 p-1 font-bold text-sm bg-indigo-50 px-2 rounded border border-indigo-100" title="編輯單詞與 Phonics">✏️ 編輯</button>
                                 <div @click.stop="speakWord(currentObj.word)" class="p-1 cursor-pointer">
                                     <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-indigo-400 hover:text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5 10v4a2 2 0 002 2h2.586l4.707 4.707A1 1 0 0016 19.318V4.682a1 1 0 00-1.707-.707L9.586 8H7a2 2 0 00-2 2z" />
@@ -101,22 +103,34 @@
                                 <template x-if="displayMode === 'photo' || displayMode === 'all'">
                                     <img x-show="currentObj.image" :src="currentObj.image" class="max-h-32 object-contain mb-3 rounded shadow-sm">
                                 </template>
-                                <template x-if="displayMode === 'word' || displayMode === 'word_example' || displayMode === 'all'">
-                                    <span class="text-[3rem] md:text-[4.5rem] font-bold text-slate-800 text-center leading-tight mb-2" x-text="currentObj.word"></span>
+                                <!-- Word/Phonics -->
+                                <template x-if="displayMode === 'word' || displayMode === 'word_example' || displayMode === 'word_translation' || displayMode === 'all'">
+                                    <div class="text-[3rem] md:text-[4.5rem] font-bold text-slate-800 text-center leading-tight mb-2 w-full" x-html="renderPhonics(currentObj)"></div>
                                 </template>
+                                <!-- Translation -->
+                                <template x-if="displayMode === 'translation' || displayMode === 'word_translation' || displayMode === 'all'">
+                                    <span class="text-xl md:text-2xl font-bold text-teal-600 text-center mb-2 px-4" x-text="currentObj.translation || '(無翻譯)'"></span>
+                                </template>
+                                <!-- Example -->
                                 <template x-if="displayMode === 'example' || displayMode === 'word_example' || displayMode === 'all'">
                                     <span class="text-sm md:text-lg text-slate-600 text-center px-4 line-clamp-3" x-text="currentObj.example || '(無例句)'"></span>
                                 </template>
                             </div>
                         </div>
 
-                        <!-- 背面 -->
+                        <!-- 背面 (固定顯示全資訊解答) -->
                         <div class="flip-card-back bg-slate-50 rounded-2xl border-4 border-indigo-200 flex flex-col items-center justify-center p-4 text-center overflow-hidden">
                             <div class="absolute top-2 right-2 p-1 text-gray-400 text-xs font-bold">📖 背面解答</div>
                             <template x-if="currentObj.image">
                                 <img :src="currentObj.image" class="max-h-28 object-contain mb-3 rounded border border-gray-300 bg-white shadow-sm">
                             </template>
-                            <div class="text-2xl font-bold text-indigo-900 mb-2" x-text="currentObj.word"></div>
+                            
+                            <div class="text-2xl font-bold text-indigo-900 mb-1 w-full" x-html="renderPhonics(currentObj)"></div>
+                            <!-- 背面顯示翻譯 -->
+                            <template x-if="currentObj.translation">
+                                <div class="text-lg font-bold text-teal-700 mb-2" x-text="currentObj.translation"></div>
+                            </template>
+                            
                             <template x-if="currentObj.example">
                                 <div class="text-sm text-slate-700 bg-white p-3 rounded-lg shadow-sm w-full" x-text="currentObj.example"></div>
                             </template>
@@ -135,6 +149,7 @@
             </div>
         </div>
 
+        <!-- 純淨學習模式 (大字體) -->
         <div x-show="currentMode === 'study'" class="fixed inset-0 bg-white z-50 flex flex-col items-center justify-center select-none p-4" style="display: none;">
             <button @click="currentMode = 'normal'" class="absolute top-6 right-6 p-4 text-gray-400 hover:text-red-500 text-xl font-bold z-50 bg-gray-100 rounded-full">✖</button>
             
@@ -142,8 +157,11 @@
                  <template x-if="displayMode === 'photo' || displayMode === 'all'">
                      <img x-show="currentObj.image" :src="currentObj.image" class="max-h-[40vh] max-w-full object-contain mb-8 rounded-xl shadow-lg border-4 border-gray-100">
                  </template>
-                 <template x-if="displayMode === 'word' || displayMode === 'word_example' || displayMode === 'all'">
-                     <span class="text-[12vw] md:text-[8vw] font-black text-slate-800 text-center leading-tight mb-6" x-text="currentObj.word"></span>
+                 <template x-if="displayMode === 'word' || displayMode === 'word_example' || displayMode === 'word_translation' || displayMode === 'all'">
+                     <div class="text-[12vw] md:text-[10vw] font-black text-slate-800 text-center leading-tight mb-4 w-full" x-html="renderPhonics(currentObj)"></div>
+                 </template>
+                 <template x-if="displayMode === 'translation' || displayMode === 'word_translation' || displayMode === 'all'">
+                     <span class="text-[6vw] md:text-[4vw] font-bold text-teal-600 text-center leading-tight mb-6" x-text="currentObj.translation || '(無翻譯)'"></span>
                  </template>
                  <template x-if="displayMode === 'example' || displayMode === 'word_example' || displayMode === 'all'">
                      <span class="text-[5vw] md:text-[3vw] font-bold text-slate-600 text-center px-8" x-text="currentObj.example || '(無例句)'"></span>
@@ -152,6 +170,7 @@
             <div class="absolute bottom-6 text-gray-300 text-sm font-bold">點擊畫面任意處切換下一個</div>
         </div>
 
+        <!-- 9宮格模式 -->
         <div x-show="currentMode === 'grid'" class="w-full flex flex-col items-center" style="display: none;">
             <div class="w-full flex justify-between items-center mb-6">
                 <button @click="currentMode = 'normal'" class="text-indigo-600 font-bold bg-indigo-50 px-4 py-2 rounded-lg">⬅️ 返回</button>
@@ -160,6 +179,7 @@
             <div class="flex gap-2 w-full mb-6">
                 <select x-model="gridDisplayType" class="flex-1 border-2 border-purple-300 rounded-lg p-2 font-bold text-purple-800 outline-none">
                     <option value="word">顯示詞彙</option>
+                    <option value="translation">顯示翻譯</option>
                     <option value="example">顯示例句</option>
                     <option value="image">顯示圖片</option>
                 </select>
@@ -168,7 +188,8 @@
             <div class="grid grid-cols-3 gap-3 w-full">
                 <template x-for="item in gridItems" :key="Math.random()">
                     <div class="bg-white border-2 border-indigo-100 shadow-sm rounded-xl aspect-square flex flex-col items-center justify-center p-2 cursor-pointer" @click="speakWord(item.word)">
-                        <template x-if="gridDisplayType === 'word'"><span class="text-3xl md:text-5xl font-bold text-slate-800" x-text="item.word"></span></template>
+                        <template x-if="gridDisplayType === 'word'"><div class="text-3xl md:text-5xl font-bold text-slate-800 w-full" x-html="renderPhonics(item)"></div></template>
+                        <template x-if="gridDisplayType === 'translation'"><span class="text-2xl md:text-4xl font-bold text-teal-700 text-center" x-text="item.translation || '(無)'"></span></template>
                         <template x-if="gridDisplayType === 'example'"><span class="text-sm font-bold text-slate-600 text-center line-clamp-4" x-text="item.example || '(無例句)'"></span></template>
                         <template x-if="gridDisplayType === 'image'">
                             <div class="w-full h-full flex items-center justify-center">
@@ -181,7 +202,7 @@
             </div>
         </div>
 
-        <!-- 📷 強大塗鴉與配圖 Modal -->
+        <!-- 📷 強大塗鴉與配圖 Modal (保持不變) -->
         <div x-show="showDrawModal" class="fixed inset-0 bg-black bg-opacity-70 z-50 flex items-center justify-center p-2" style="display: none;">
             <div class="bg-white w-full max-w-lg rounded-2xl p-4 shadow-2xl flex flex-col items-center relative">
                 <h3 class="text-lg font-bold text-purple-800 mb-2">📷 圖片/塗鴉標註：<span x-text="currentObj.word"></span></h3>
@@ -195,14 +216,12 @@
                     <button @click="clearCanvas()" class="px-2 py-2 bg-gray-200 text-gray-700 rounded-lg font-bold text-sm">🗑️ 清空</button>
                 </div>
 
-                <!-- 搜尋圖片結果列 -->
                 <div x-show="searchResults.length > 0" class="w-full flex gap-2 overflow-x-auto mb-2 p-2 bg-gray-50 rounded-lg border border-gray-200 shadow-inner">
                     <template x-for="url in searchResults" :key="url">
                         <img :src="url" @click="selectWebImage(url)" class="h-16 w-16 object-cover cursor-pointer rounded-lg border-2 border-transparent hover:border-purple-500 flex-shrink-0 shadow-sm transition-all">
                     </template>
                 </div>
                 
-                <!-- 工具列：調色盤與 Emoji 印章 -->
                 <div class="w-full flex justify-between items-center mb-2 bg-indigo-50 p-2 rounded-lg border border-indigo-100">
                     <div class="flex items-center gap-2">
                         <select x-model="currentTool" class="border border-indigo-300 rounded p-1 text-sm font-bold bg-white text-indigo-900 outline-none">
@@ -211,13 +230,11 @@
                         </select>
                     </div>
                     
-                    <!-- 畫筆顏色選擇 (僅在畫筆模式顯示) -->
                     <div x-show="currentTool === 'draw'" class="flex items-center gap-2">
                         <span class="text-sm font-bold text-gray-600">顏色:</span>
                         <input type="color" x-model="brushColor" class="w-8 h-8 rounded cursor-pointer border-none p-0">
                     </div>
 
-                    <!-- Emoji 選擇 (僅在印章模式顯示) -->
                     <div x-show="currentTool === 'emoji'" class="flex items-center gap-2">
                         <span class="text-sm font-bold text-gray-600">圖案:</span>
                         <select x-model="stampEmoji" class="border rounded p-1 text-lg bg-white">
@@ -249,18 +266,61 @@
             </div>
         </div>
 
+        <!-- ✏️ 編輯 Modal -->
         <div x-show="showModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4" style="display: none;">
-            <div class="bg-white w-full max-w-md rounded-2xl p-6 shadow-2xl">
+            <div class="bg-white w-full max-w-md rounded-2xl p-6 shadow-2xl overflow-y-auto max-h-[90vh]">
                 <h3 class="text-xl font-bold text-indigo-900 mb-4" x-text="modalType === 'add' ? '➕ 新增單詞' : '✏️ 編輯單詞'"></h3>
                 <div class="space-y-4">
-                    <div><label class="block text-sm font-bold text-gray-700 mb-1">卡組名稱</label><input type="text" x-model="modalData.deck" class="w-full border-2 border-gray-200 rounded-lg p-2 font-bold focus:border-indigo-500 outline-none" :disabled="modalType === 'edit'"></div>
-                    <div><label class="block text-sm font-bold text-gray-700 mb-1">詞彙</label><input type="text" x-model="modalData.word" class="w-full border-2 border-gray-200 rounded-lg p-2 font-bold focus:border-indigo-500 outline-none"></div>
-                    <div><label class="block text-sm font-bold text-gray-700 mb-1">圖片網址 (已有照片請留空)</label><input type="text" x-model="modalData.image" class="w-full border-2 border-gray-200 rounded-lg p-2 text-sm focus:border-indigo-500 outline-none"></div>
+                    <div>
+                        <label class="block text-sm font-bold text-gray-700 mb-1">卡組名稱</label>
+                        <input type="text" x-model="modalData.deck" class="w-full border-2 border-gray-200 rounded-lg p-2 font-bold focus:border-indigo-500 outline-none" :disabled="modalType === 'edit'">
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-bold text-gray-700 mb-1">詞彙</label>
+                        <input type="text" x-model="modalData.word" @input="updatePhonicsArray()" class="w-full border-2 border-gray-200 rounded-lg p-2 font-bold focus:border-indigo-500 outline-none">
+                    </div>
+                    
+                    <!-- 新增翻譯欄位與自動翻譯按鈕 -->
+                    <div>
+                        <div class="flex justify-between items-center mb-1">
+                            <label class="block text-sm font-bold text-gray-700">翻譯 (Translation)</label>
+                            <button @click="autoTranslate()" class="text-xs bg-teal-100 text-teal-800 px-2 py-1 rounded font-bold hover:bg-teal-200 flex items-center gap-1">
+                                <span x-show="isTranslating" class="animate-spin h-3 w-3 border-b-2 border-teal-800 rounded-full inline-block"></span>
+                                🤖 自動翻譯
+                            </button>
+                        </div>
+                        <input type="text" x-model="modalData.translation" class="w-full border-2 border-gray-200 rounded-lg p-2 font-bold text-teal-700 focus:border-indigo-500 outline-none">
+                    </div>
+                    
+                    <div class="border border-indigo-100 rounded-lg p-3 bg-indigo-50">
+                        <label class="block text-sm font-bold text-gray-700 mb-2">🔤 Phonics 發音標註 (點下方字母套用)</label>
+                        <div class="flex flex-wrap gap-2 mb-3">
+                            <button @click="phonicsTool = 'red'" :class="phonicsTool === 'red' ? 'ring-2 ring-red-500 bg-red-200' : 'bg-red-100'" class="px-2 py-1 text-red-600 rounded text-xs font-bold transition">🔴 紅字</button>
+                            <button @click="phonicsTool = 'blue'" :class="phonicsTool === 'blue' ? 'ring-2 ring-blue-500 bg-blue-200' : 'bg-blue-100'" class="px-2 py-1 text-blue-600 rounded text-xs font-bold transition">🔵 藍字</button>
+                            <button @click="phonicsTool = 'dot'" :class="phonicsTool === 'dot' ? 'ring-2 ring-gray-600 bg-gray-300' : 'bg-gray-200'" class="px-2 py-1 text-gray-800 rounded text-xs font-bold transition">⚫ 加點</button>
+                            <button @click="phonicsTool = 'under'" :class="phonicsTool === 'under' ? 'ring-2 ring-gray-600 bg-gray-300' : 'bg-gray-200'" class="px-2 py-1 text-gray-800 rounded text-xs font-bold transition">➖ 連音線</button>
+                            <button @click="phonicsTool = 'clear'" :class="phonicsTool === 'clear' ? 'ring-2 ring-gray-600 bg-gray-100' : 'bg-white'" class="px-2 py-1 border border-gray-300 text-gray-600 rounded text-xs font-bold transition">🧹 清除</button>
+                        </div>
+                        <div class="flex flex-wrap text-3xl font-bold cursor-pointer select-none bg-white p-2 rounded border border-indigo-200 justify-center min-h-[60px] items-center">
+                            <template x-for="(p, i) in modalData.phonics" :key="i">
+                                <span @click="applyPhonics(i)" 
+                                      :class="(p.color === 'red' ? 'text-red-500 ' : (p.color === 'blue' ? 'text-blue-500 ' : 'text-gray-800 ')) + (p.under ? 'underline decoration-4 underline-offset-4 ' : '')"
+                                      class="relative px-[1px] hover:bg-gray-200 rounded transition-colors inline-block text-center min-w-[20px]">
+                                    <span x-text="p.char === ' ' ? '&nbsp;' : p.char"></span>
+                                    <template x-if="p.dot">
+                                        <span class="absolute left-1/2 transform -translate-x-1/2 text-gray-800" style="bottom: -0.2em; font-size: 0.5em;">●</span>
+                                    </template>
+                                </span>
+                            </template>
+                        </div>
+                    </div>
+
                     <div><label class="block text-sm font-bold text-gray-700 mb-1">例句</label><textarea x-model="modalData.example" class="w-full border-2 border-gray-200 rounded-lg p-2 text-sm focus:border-indigo-500 outline-none" rows="2"></textarea></div>
                 </div>
                 <div class="flex justify-end gap-3 mt-6">
                     <button @click="showModal = false" class="px-5 py-2 bg-gray-200 rounded-xl font-bold">取消</button>
-                    <button @click="saveModalData()" class="px-5 py-2 bg-indigo-600 text-white rounded-xl font-bold shadow-lg">儲存</button>
+                    <button @click="saveModalData()" class="px-5 py-2 bg-indigo-600 text-white rounded-xl font-bold shadow-lg">💾 儲存</button>
                 </div>
             </div>
         </div>
@@ -270,7 +330,7 @@
     <script>
         function flashcardApp() {
             return {
-                decksData: {"中文認字卡 (示範)": [{"word": "爸爸", "image": "", "example": "", "status": "需複習"}, {"word": "手套", "image": "", "example": "", "status": "需複習"}, {"word": "媽媽", "image": "", "example": "", "status": "需複習"}, {"word": "月", "image": "", "example": "", "status": "需複習"}, {"word": "菜", "image": "", "example": "", "status": "需複習"}, {"word": "冬", "image": "", "example": "", "status": "需複習"}, {"word": "口", "image": "", "example": "", "status": "需複習"}, {"word": "人", "image": "", "example": "", "status": "需複習"}, {"word": "手", "image": "", "example": "", "status": "需複習"}, {"word": "女", "image": "", "example": "", "status": "需複習"}, {"word": "果", "image": "", "example": "", "status": "需複習"}, {"word": "魚", "image": "", "example": "", "status": "需複習"}, {"word": "眼", "image": "", "example": "", "status": "需複習"}, {"word": "耳", "image": "", "example": "", "status": "需複習"}, {"word": "門", "image": "", "example": "", "status": "需複習"}, {"word": "男", "image": "", "example": "", "status": "需複習"}], "英文詞彙 (示範)": [{"word": "apple", "image": "", "example": "", "status": "需複習"}, {"word": "ant", "image": "", "example": "", "status": "需複習"}, {"word": "ball", "image": "", "example": "", "status": "需複習"}, {"word": "bus", "image": "", "example": "", "status": "需複習"}, {"word": "cat", "image": "", "example": "", "status": "需複習"}, {"word": "cup", "image": "", "example": "", "status": "需複習"}, {"word": "dog", "image": "", "example": "", "status": "需複習"}, {"word": "door", "image": "", "example": "", "status": "需複習"}, {"word": "egg", "image": "", "example": "", "status": "需複習"}, {"word": "elephant", "image": "", "example": "", "status": "需複習"}, {"word": "fish", "image": "", "example": "", "status": "需複習"}, {"word": "fan", "image": "", "example": "", "status": "需複習"}, {"word": "girl", "image": "", "example": "", "status": "需複習"}, {"word": "grapes", "image": "", "example": "", "status": "需複習"}, {"word": "hat", "image": "", "example": "", "status": "需複習"}, {"word": "hand", "image": "", "example": "", "status": "需複習"}, {"word": "igloo", "image": "", "example": "", "status": "需複習"}, {"word": "ink", "image": "", "example": "", "status": "需複習"}, {"word": "jam", "image": "", "example": "", "status": "需複習"}, {"word": "juice", "image": "", "example": "", "status": "需複習"}, {"word": "kite", "image": "", "example": "", "status": "需複習"}, {"word": "king", "image": "", "example": "", "status": "需複習"}]},
+                decksData: {"中文認字卡 (示範)": [{"word": "爸爸", "translation": "", "image": "", "example": "", "status": "需複習", "phonics": []}, {"word": "手套", "translation": "", "image": "", "example": "", "status": "需複習", "phonics": []}, {"word": "媽媽", "translation": "", "image": "", "example": "", "status": "需複習", "phonics": []}, {"word": "月", "translation": "", "image": "", "example": "", "status": "需複習", "phonics": []}, {"word": "菜", "translation": "", "image": "", "example": "", "status": "需複習", "phonics": []}, {"word": "冬", "translation": "", "image": "", "example": "", "status": "需複習", "phonics": []}, {"word": "口", "translation": "", "image": "", "example": "", "status": "需複習", "phonics": []}, {"word": "人", "translation": "", "image": "", "example": "", "status": "需複習", "phonics": []}, {"word": "手", "translation": "", "image": "", "example": "", "status": "需複習", "phonics": []}, {"word": "女", "translation": "", "image": "", "example": "", "status": "需複習", "phonics": []}, {"word": "果", "translation": "", "image": "", "example": "", "status": "需複習", "phonics": []}, {"word": "魚", "translation": "", "image": "", "example": "", "status": "需複習", "phonics": []}, {"word": "眼", "translation": "", "image": "", "example": "", "status": "需複習", "phonics": []}, {"word": "耳", "translation": "", "image": "", "example": "", "status": "需複習", "phonics": []}, {"word": "門", "translation": "", "image": "", "example": "", "status": "需複習", "phonics": []}, {"word": "男", "translation": "", "image": "", "example": "", "status": "需複習", "phonics": []}], "英文詞彙 (示範)": [{"word": "apple", "translation": "", "image": "", "example": "", "status": "需複習", "phonics": []}, {"word": "ant", "translation": "", "image": "", "example": "", "status": "需複習", "phonics": []}, {"word": "ball", "translation": "", "image": "", "example": "", "status": "需複習", "phonics": []}, {"word": "bus", "translation": "", "image": "", "example": "", "status": "需複習", "phonics": []}, {"word": "cat", "translation": "", "image": "", "example": "", "status": "需複習", "phonics": []}, {"word": "cup", "translation": "", "image": "", "example": "", "status": "需複習", "phonics": []}, {"word": "dog", "translation": "", "image": "", "example": "", "status": "需複習", "phonics": []}, {"word": "door", "translation": "", "image": "", "example": "", "status": "需複習", "phonics": []}, {"word": "egg", "translation": "", "image": "", "example": "", "status": "需複習", "phonics": []}, {"word": "elephant", "translation": "", "image": "", "example": "", "status": "需複習", "phonics": []}, {"word": "fish", "translation": "", "image": "", "example": "", "status": "需複習", "phonics": []}, {"word": "fan", "translation": "", "image": "", "example": "", "status": "需複習", "phonics": []}, {"word": "girl", "translation": "", "image": "", "example": "", "status": "需複習", "phonics": []}, {"word": "grapes", "translation": "", "image": "", "example": "", "status": "需複習", "phonics": []}, {"word": "hat", "translation": "", "image": "", "example": "", "status": "需複習", "phonics": []}, {"word": "hand", "translation": "", "image": "", "example": "", "status": "需複習", "phonics": []}, {"word": "igloo", "translation": "", "image": "", "example": "", "status": "需複習", "phonics": []}, {"word": "ink", "translation": "", "image": "", "example": "", "status": "需複習", "phonics": []}, {"word": "jam", "translation": "", "image": "", "example": "", "status": "需複習", "phonics": []}, {"word": "juice", "translation": "", "image": "", "example": "", "status": "需複習", "phonics": []}, {"word": "kite", "translation": "", "image": "", "example": "", "status": "需複習", "phonics": []}, {"word": "king", "translation": "", "image": "", "example": "", "status": "需複習", "phonics": []}]},
                 deckNames: [],
                 currentDeckName: '',
                 currentIndex: 0,
@@ -284,15 +344,17 @@
                 showModal: false,
                 showDrawModal: false,
                 isSearchingImage: false,
+                isTranslating: false,
                 searchResults: [],
                 
-                // 畫布工具設定
                 currentTool: 'draw', 
                 brushColor: '#ef4444',
                 stampEmoji: '⭐',
                 
+                phonicsTool: 'red',
+                
                 modalType: 'add',
-                modalData: { deck: '', word: '', image: '', example: '', status: '需複習' },
+                modalData: { deck: '', word: '', translation: '', image: '', example: '', status: '需複習', phonics: [] },
                 
                 canvas: null, ctx: null, isDrawing: false,
                 gridItems: [], gridDisplayType: 'word',
@@ -300,7 +362,7 @@
                 init() {
                     this.deckNames = Object.keys(this.decksData);
                     if(this.deckNames.length > 0) this.currentDeckName = this.deckNames[0];
-                    const saved = localStorage.getItem('flashcard_progress_v15');
+                    const saved = localStorage.getItem('flashcard_progress_v17');
                     if(saved) {
                         try {
                             const progress = JSON.parse(saved);
@@ -309,7 +371,7 @@
                     }
                 },
                 
-                saveProgress() { localStorage.setItem('flashcard_progress_v15', JSON.stringify({ decks: this.decksData })); },
+                saveProgress() { localStorage.setItem('flashcard_progress_v17', JSON.stringify({ decks: this.decksData })); },
                 
                 get activeList() {
                     const list = this.decksData[this.currentDeckName] || [];
@@ -317,12 +379,79 @@
                     return list;
                 },
                 get currentObj() {
-                    if (this.activeList.length === 0) return {word: "無資料", image: "", example: "", status: "需複習"};
+                    if (this.activeList.length === 0) return {word: "無資料", translation: "", image: "", example: "", status: "需複習", phonics: []};
                     if (this.currentIndex >= this.activeList.length) this.currentIndex = 0;
                     return this.activeList[this.currentIndex];
                 },
                 get knownCount() { return (this.decksData[this.currentDeckName] || []).filter(d => d.status === '已記住').length; },
                 get reviewCount() { return (this.decksData[this.currentDeckName] || []).filter(d => d.status !== '已記住').length; },
+                
+                renderPhonics(item) {
+                    if (!item.phonics || item.phonics.length === 0 || item.phonics.length !== (item.word || "").length) {
+                        return (item.word || "無資料").replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                    }
+                    let html = '<div class="flex flex-wrap justify-center whitespace-pre-wrap text-center">';
+                    item.phonics.forEach(p => {
+                        let colorCls = '';
+                        if (p.color === 'red') colorCls = 'text-red-500';
+                        else if (p.color === 'blue') colorCls = 'text-blue-500';
+                        
+                        let underCls = p.under ? 'underline decoration-[0.1em] underline-offset-[0.2em]' : '';
+                        let charSafe = p.char === ' ' ? '&nbsp;' : p.char.replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                        let dotHtml = p.dot ? '<span class="absolute left-1/2 transform -translate-x-1/2 text-gray-800" style="bottom: -0.4em; font-size: 0.5em; line-height: 1;">●</span>' : '';
+                        
+                        html += `<span class="relative inline-block ${colorCls} ${underCls}">${charSafe}${dotHtml}</span>`;
+                    });
+                    html += '</div>';
+                    return html;
+                },
+                
+                updatePhonicsArray() {
+                    if (!this.modalData.word) { this.modalData.phonics = []; return; }
+                    let oldPhonics = this.modalData.phonics || [];
+                    let newPhonics = [];
+                    let wordStr = this.modalData.word.split('');
+                    for (let i = 0; i < wordStr.length; i++) {
+                        if (oldPhonics[i] && oldPhonics[i].char === wordStr[i]) {
+                            newPhonics.push(oldPhonics[i]);
+                        } else {
+                            newPhonics.push({ char: wordStr[i], color: '', dot: false, under: false });
+                        }
+                    }
+                    this.modalData.phonics = newPhonics;
+                },
+                
+                applyPhonics(index) {
+                    let p = this.modalData.phonics[index];
+                    if (this.phonicsTool === 'red') p.color = p.color === 'red' ? '' : 'red';
+                    else if (this.phonicsTool === 'blue') p.color = p.color === 'blue' ? '' : 'blue';
+                    else if (this.phonicsTool === 'dot') p.dot = !p.dot;
+                    else if (this.phonicsTool === 'under') p.under = !p.under;
+                    else if (this.phonicsTool === 'clear') { p.color = ''; p.dot = false; p.under = false; }
+                },
+                
+                // === 自動翻譯 API (使用 MyMemory 免費介面) ===
+                async autoTranslate() {
+                    if (!this.modalData.word) return;
+                    this.isTranslating = true;
+                    try {
+                        const text = this.modalData.word;
+                        const hasChinese = /[一-龥]/.test(text);
+                        // 中文翻譯成英文，英文翻譯成繁體中文
+                        const langpair = hasChinese ? 'zh-TW|en' : 'en|zh-TW';
+                        const res = await fetch(`https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=${langpair}`);
+                        const data = await res.json();
+                        if (data && data.responseData && data.responseData.translatedText) {
+                            this.modalData.translation = data.responseData.translatedText;
+                        } else {
+                            alert('自動翻譯未回傳結果，請手動輸入。');
+                        }
+                    } catch(e) {
+                        alert('翻譯服務連線失敗，請檢查網路或手動輸入。');
+                    } finally {
+                        this.isTranslating = false;
+                    }
+                },
                 
                 setDeck(deck) { 
                     this.currentDeckName = deck; 
@@ -351,12 +480,23 @@
                     this.saveProgress();
                 },
                 
-                openAddModal() { this.modalType = 'add'; this.modalData = { deck: this.currentDeckName, word: '', image: '', example: '', status: '需複習' }; this.showModal = true; },
-                openEditModal() { this.modalType = 'edit'; const obj = this.currentObj; this.modalData = { deck: this.currentDeckName, word: obj.word, image: obj.image.startsWith('data:image') ? '' : obj.image, example: obj.example, status: obj.status }; this.showModal = true; },
+                openAddModal() { 
+                    this.modalType = 'add'; 
+                    this.modalData = { deck: this.currentDeckName, word: '', translation: '', image: '', example: '', status: '需複習', phonics: [] }; 
+                    this.showModal = true; 
+                },
+                openEditModal() { 
+                    this.modalType = 'edit'; 
+                    const obj = this.currentObj; 
+                    let pData = obj.phonics ? JSON.parse(JSON.stringify(obj.phonics)) : [];
+                    this.modalData = { deck: this.currentDeckName, word: obj.word, translation: obj.translation || '', image: obj.image.startsWith('data:image') ? '' : obj.image, example: obj.example, status: obj.status, phonics: pData }; 
+                    this.updatePhonicsArray();
+                    this.showModal = true; 
+                },
                 
                 openDrawModal() { 
                     this.showDrawModal = true; 
-                    this.searchResults = []; // 重置搜尋結果
+                    this.searchResults = [];
                     setTimeout(() => { this.initCanvas(); }, 100); 
                 },
                 
@@ -388,11 +528,10 @@
                             this.isDrawing = true;
                             this.ctx.beginPath();
                             this.ctx.moveTo(pos.x, pos.y);
-                            this.ctx.strokeStyle = this.brushColor; // 使用選擇的顏色
+                            this.ctx.strokeStyle = this.brushColor; 
                             this.ctx.lineWidth = 4;
                             this.ctx.lineCap = 'round';
                         } else if (this.currentTool === 'emoji') {
-                            // 蓋印章
                             this.ctx.font = "40px Arial";
                             this.ctx.textAlign = "center";
                             this.ctx.textBaseline = "middle";
@@ -415,30 +554,23 @@
                     this.canvas.onmousemove = moveAction;
                     this.canvas.onmouseup = endAction;
                     this.canvas.onmouseout = endAction;
-                    
-                    // 觸控支援
                     this.canvas.ontouchstart = startAction;
                     this.canvas.ontouchmove = moveAction;
                     this.canvas.ontouchend = endAction;
                 },
 
-                // === 搜尋 8 張網路相片供選擇 ===
                 async fetchWebImagesList() {
                     const word = this.currentObj.word;
                     if(!word || word === "無資料") return;
-                    
                     this.isSearchingImage = true;
                     this.searchResults = [];
                     try {
                         const commRes = await fetch(`https://commons.wikimedia.org/w/api.php?action=query&generator=search&gsrsearch=${encodeURIComponent(word)}&gsrnamespace=6&gsrlimit=8&prop=imageinfo&iiprop=url&iiurlwidth=300&format=json&origin=*`);
                         const commData = await commRes.json();
-                        
                         if(commData.query && commData.query.pages) {
                             const pages = Object.values(commData.query.pages);
-                            // 篩選有效的圖片網址
                             this.searchResults = pages.map(p => p.imageinfo && p.imageinfo[0] ? (p.imageinfo[0].thumburl || p.imageinfo[0].url) : null).filter(url => url);
                         }
-                        
                         this.isSearchingImage = false;
                         if(this.searchResults.length === 0) {
                             alert('抱歉，找不到與「' + word + '」相關的照片，請嘗試拍照或上傳。');
@@ -449,7 +581,6 @@
                     }
                 },
 
-                // === 將選擇的相片載入 Canvas ===
                 async selectWebImage(url) {
                     try {
                         const imgRes = await fetch(url);
@@ -514,10 +645,12 @@
                     worksheet.columns = [
                         { header: '卡組名稱', key: 'deck', width: 20 },
                         { header: '詞彙', key: 'word', width: 20 },
+                        { header: '翻譯', key: 'translation', width: 20 },
                         { header: '真實圖片', key: 'visual_img', width: 25 },
                         { header: '例句', key: 'example', width: 40 },
                         { header: '狀態', key: 'status', width: 15 },
-                        { header: '隱藏圖片資料', key: 'hidden_b64', width: 10, hidden: true }
+                        { header: '隱藏圖片資料', key: 'hidden_b64', width: 10, hidden: true },
+                        { header: '隱藏Phonics資料', key: 'hidden_phonics', width: 10, hidden: true }
                     ];
                     worksheet.getRow(1).eachCell(cell => { cell.font = { bold: true }; cell.alignment = { vertical: 'middle', horizontal: 'center' }; });
 
@@ -527,9 +660,11 @@
                             const row = worksheet.addRow({ 
                                 deck: deck, 
                                 word: item.word, 
+                                translation: item.translation || '',
                                 example: item.example, 
                                 status: item.status,
-                                hidden_b64: item.image 
+                                hidden_b64: item.image,
+                                hidden_phonics: JSON.stringify(item.phonics || [])
                             });
                             worksheet.getRow(rowIndex).height = 100;
                             row.eachCell(cell => { cell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true }; });
@@ -539,7 +674,7 @@
                                     const base64Data = item.image.split(',')[1];
                                     const ext = item.image.includes('png') ? 'png' : 'jpeg';
                                     const imageId = workbook.addImage({ base64: base64Data, extension: ext });
-                                    worksheet.addImage(imageId, { tl: { col: 2, row: rowIndex - 1 }, ext: { width: 110, height: 110 }, editAs: 'oneCell' });
+                                    worksheet.addImage(imageId, { tl: { col: 3, row: rowIndex - 1 }, ext: { width: 110, height: 110 }, editAs: 'oneCell' });
                                 } catch(e) { console.error("視覺圖片匯出失敗:", e); }
                             } else if (item.image) {
                                 row.getCell('visual_img').value = item.image;
@@ -550,7 +685,7 @@
                     const buffer = await workbook.xlsx.writeBuffer();
                     const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
                     const dateStr = new Date().toISOString().slice(0,10);
-                    saveAs(blob, `Flashcards_包含照片進度_${dateStr}.xlsx`);
+                    saveAs(blob, `Flashcards_包含翻譯與標註_${dateStr}.xlsx`);
                 },
                 
                 saveModalData() {
@@ -559,13 +694,22 @@
                     if(!word) return;
                     if(!this.decksData[deck]) { this.decksData[deck] = []; this.deckNames = Object.keys(this.decksData); }
                     if(this.modalType === 'add') {
-                        this.decksData[deck].push({ word: word, image: this.modalData.image.trim(), example: this.modalData.example.trim(), status: '需複習' });
+                        this.decksData[deck].push({ 
+                            word: word, 
+                            translation: this.modalData.translation.trim(),
+                            image: this.modalData.image.trim(), 
+                            example: this.modalData.example.trim(), 
+                            status: '需複習',
+                            phonics: JSON.parse(JSON.stringify(this.modalData.phonics))
+                        });
                     } else {
                         const obj = this.currentObj;
                         obj.word = word;
-                        if (obj.image.startsWith('data:image') && this.modalData.image.trim() === '') { /* 保留原照片 */ } 
+                        obj.translation = this.modalData.translation.trim();
+                        if (obj.image.startsWith('data:image') && this.modalData.image.trim() === '') { /* 保留 */ } 
                         else { obj.image = this.modalData.image.trim(); }
                         obj.example = this.modalData.example.trim();
+                        obj.phonics = JSON.parse(JSON.stringify(this.modalData.phonics));
                     }
                     this.saveProgress(); this.showModal = false; this.currentDeckName = deck;
                 },
