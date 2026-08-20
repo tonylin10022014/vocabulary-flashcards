@@ -6,7 +6,7 @@
     <title>Pre-Nursery Flashcards</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
-    <!-- 使用 ExcelJS 來支援從網頁匯出帶有實體圖片的 Excel -->
+    <!-- 使用 ExcelJS 產生實體圖片 Excel -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
     <style>
@@ -25,7 +25,7 @@
                 <h1 class="text-2xl font-bold text-indigo-900">學習閃卡系統</h1>
                 <div class="flex gap-2">
                     <button @click="openAddModal()" class="bg-indigo-600 text-white px-3 py-2 rounded shadow hover:bg-indigo-700 font-bold text-sm">➕ 新增</button>
-                    <!-- 網頁端匯出實體圖片 Excel 的按鈕 -->
+                    <!-- 網頁端匯出實體圖片 Excel，包含隱藏字串以保證 Python 可 100% 匯入 -->
                     <button @click="exportExcelWithImages()" class="bg-blue-600 text-white px-3 py-2 rounded shadow hover:bg-blue-700 font-bold text-sm flex items-center gap-1">
                         📤 下載 Excel (含照片)
                     </button>
@@ -135,7 +135,6 @@
             </div>
         </div>
 
-        <!-- 拍攝與畫板 Modal -->
         <div x-show="showDrawModal" class="fixed inset-0 bg-black bg-opacity-70 z-50 flex items-center justify-center p-4" style="display: none;">
             <div class="bg-white w-full max-w-md rounded-2xl p-5 shadow-2xl flex flex-col items-center">
                 <h3 class="text-lg font-bold text-purple-800 mb-2">📷 拍攝/塗鴉：<span x-text="currentObj.word"></span></h3>
@@ -154,7 +153,6 @@
             </div>
         </div>
 
-        <!-- 編輯 Modal -->
         <div x-show="showModal" class="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4" style="display: none;">
             <div class="bg-white w-full max-w-md rounded-2xl p-6 shadow-2xl">
                 <h3 class="text-xl font-bold text-indigo-900 mb-4" x-text="modalType === 'add' ? '➕ 新增單詞' : '✏️ 編輯單詞'"></h3>
@@ -195,7 +193,7 @@
                 init() {
                     this.deckNames = Object.keys(this.decksData);
                     if(this.deckNames.length > 0) this.currentDeckName = this.deckNames[0];
-                    const saved = localStorage.getItem('flashcard_progress_v11');
+                    const saved = localStorage.getItem('flashcard_progress_v12');
                     if(saved) {
                         try {
                             const progress = JSON.parse(saved);
@@ -204,7 +202,7 @@
                     }
                 },
                 
-                saveProgress() { localStorage.setItem('flashcard_progress_v11', JSON.stringify({ decks: this.decksData })); },
+                saveProgress() { localStorage.setItem('flashcard_progress_v12', JSON.stringify({ decks: this.decksData })); },
                 
                 get activeList() {
                     const list = this.decksData[this.currentDeckName] || [];
@@ -300,34 +298,44 @@
                     this.showDrawModal = false;
                 },
                 
-                // === 使用 ExcelJS 產生內嵌實體圖片的 Excel ===
+                // === 雙軌制匯出：同時保留人類看的視覺圖片，與給 Python 讀取的隱藏資料 ===
                 async exportExcelWithImages() {
                     const workbook = new ExcelJS.Workbook();
                     const worksheet = workbook.addWorksheet('Flashcards');
+                    
+                    // 第 6 欄位設定為隱藏資料欄 (hidden: true)，這是 100% 成功匯入 Python 的關鍵
                     worksheet.columns = [
                         { header: '卡組名稱', key: 'deck', width: 20 },
                         { header: '詞彙', key: 'word', width: 20 },
                         { header: '真實圖片', key: 'visual_img', width: 25 },
                         { header: '例句', key: 'example', width: 40 },
-                        { header: '狀態', key: 'status', width: 15 }
+                        { header: '狀態', key: 'status', width: 15 },
+                        { header: '隱藏圖片資料', key: 'hidden_b64', width: 10, hidden: true }
                     ];
                     worksheet.getRow(1).eachCell(cell => { cell.font = { bold: true }; cell.alignment = { vertical: 'middle', horizontal: 'center' }; });
 
                     let rowIndex = 2;
                     for (let deck in this.decksData) {
                         for (let item of this.decksData[deck]) {
-                            const row = worksheet.addRow({ deck: deck, word: item.word, example: item.example, status: item.status });
+                            // 寫入包含隱藏欄位的資料
+                            const row = worksheet.addRow({ 
+                                deck: deck, 
+                                word: item.word, 
+                                example: item.example, 
+                                status: item.status,
+                                hidden_b64: item.image 
+                            });
                             worksheet.getRow(rowIndex).height = 100;
                             row.eachCell(cell => { cell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true }; });
 
+                            // 為人類使用者建立視覺圖片
                             if (item.image && item.image.startsWith('data:image')) {
                                 try {
                                     const base64Data = item.image.split(',')[1];
                                     const ext = item.image.includes('png') ? 'png' : 'jpeg';
                                     const imageId = workbook.addImage({ base64: base64Data, extension: ext });
-                                    // 插入到 C 欄 (col 2, 因 ExcelJS 是 0-based indexing for placement)
                                     worksheet.addImage(imageId, { tl: { col: 2, row: rowIndex - 1 }, ext: { width: 110, height: 110 }, editAs: 'oneCell' });
-                                } catch(e) { console.error("圖片匯出失敗:", e); }
+                                } catch(e) { console.error("視覺圖片匯出失敗:", e); }
                             } else if (item.image) {
                                 row.getCell('visual_img').value = item.image;
                             }
